@@ -2,7 +2,7 @@
 # section 3: lecture 12
 # USE THIS CODE IN CONJUNCTION WITH THE HTML PROVIDED
 
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, session, g
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
@@ -12,31 +12,42 @@ app = Flask(__name__)
 
 user_connection = os.environ['LEXICON_DATABASE_USER']
 password_connection = os.environ['LEXICON_DATABASE_PASSWORD']
-host_connection = os.environ['LEXICON_DATABASE_PASSWORD']
+host_connection = os.environ['LEXICON_DATABASE_HOST']
+port_connection = os.environ['LEXICON_DATABASE_PORT']
+database = os.environ['LEXICON_DATABASE']
+secret_key = os.environ['SECRET_KEY']
 
-connection = 'postgres://{user_connection}:{password_connection}@{host_connection}'.format(
-    user_connection=user_connection, password_connection=password_connection, host_connection=host_connection)
+connection = 'postgres://{user_connection}:{password_connection}@{host_connection}:{port_connection}/{database}'\
+    .format(user_connection=user_connection, password_connection=password_connection, host_connection=host_connection,
+            port_connection=port_connection, database=database)
 
 
 app.config.update(
-    SECRET_KEY='topsecret',
-    SQLALCHEMY_DATABASE_URI='postgres://sophia:sophia@localhost:5431/catalog_db',
+    SECRET_KEY=secret_key,
+    SQLALCHEMY_DATABASE_URI=connection,
     SQLALCHEMY_TRACK_MODIFICATIONS=False
 )
 
 db = SQLAlchemy(app)
 
 
+@app.before_request
+def some_function():
+    g.string = '<br> This code ran before any request'
+
+
+# BASIC ROUTE
 @app.route('/index')
 @app.route('/')
 def hello_flask():
-    return 'Hello Flask'
+    return 'Hello Flask! <br>' + g.string
 
 
+# QUERY STRINGS
 @app.route('/new/')
-def query_string(greeting='hello'):
+def query_strings(greeting='hello'):
     query_val = request.args.get('greeting', greeting)
-    return '<h1> the greeting is: {0} </h1>'.format(query_val)
+    return '<h1> the greeting is : {0} </h1>'.format(query_val) + g.string
 
 
 @app.route('/user')
@@ -132,6 +143,13 @@ def jinja_macros():
                    'spiderman - homecoming': 1.48}
 
     return render_template('using_macros.html', movies=movies_dict)
+
+
+@app.route('/session')
+def session_data():
+    if 'name' not in session:
+        session['name'] = 'harry'
+    return render_template('session.html', session=session, name=session['name'])
 
 
 # PUBLICATION TABLE
